@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithm Visualizer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1017;--surface:#151a25;--surface2:#1c2233;--border:#2a3050;
+  --text:#dfe3f0;--text2:#7a82a0;--accent:#7c6aff;--accent2:#ff5c8a;
+  --green:#34d399;--red:#f43f5e;--yellow:#fbbf24;--cyan:#22d3ee;
+  --orange:#fb923c;--purple:#a78bfa;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;overflow-x:hidden;min-height:100vh}
+
+/* ── Header ── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:linear-gradient(180deg,var(--surface),var(--surface2));border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+.logo{font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+.logo span{background:linear-gradient(135deg,var(--accent),var(--accent2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:3px}
+.tab{padding:8px 22px;border:none;background:transparent;color:var(--text2);font-size:.88rem;cursor:pointer;border-radius:8px;transition:all .25s;font-weight:500}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(124,106,255,.35)}
+
+/* ── Controls ── */
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--border)}
+.controls label{font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:7px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.controls label span{color:var(--cyan);font-weight:700;min-width:22px;text-align:right}
+.controls select,.controls button{padding:7px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer;transition:all .2s;font-weight:500}
+.controls select:hover,.controls button:hover{border-color:var(--accent);background:#232a42}
+.btn-go{background:linear-gradient(135deg,var(--accent),#5b4aee)!important;border-color:transparent!important;color:#fff!important;font-weight:700;box-shadow:0 2px 12px rgba(124,106,255,.3)}
+.btn-go:hover{opacity:.88!important;transform:translateY(-1px)}
+.btn-stop{background:var(--accent2)!important;border-color:transparent!important;color:#fff!important;font-weight:700}
+.btn-new{background:transparent;border:1px dashed var(--border)!important;color:var(--text2)!important}
+.btn-new:hover{border-color:var(--green)!important;color:var(--green)!important}
+input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 6px rgba(124,106,255,.5)}
+
+/* ── Sorting ── */
+#sorting-view{display:flex;flex-direction:column;align-items:center;padding:28px 20px}
+.bars-wrap{position:relative;display:flex;align-items:flex-end;gap:1.5px;height:56vh;width:92vw;max-width:1200px;padding:16px 12px 12px;background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:0 4px 30px rgba(0,0,0,.3)}
+.bar{flex:1;border-radius:4px 4px 0 0;min-width:1px;position:relative;transition:background .12s}
+
+/* ── Pathfinding ── */
+#pathfinding-view{display:none;flex-direction:column;align-items:center;padding:28px 20px}
+.grid-wrap{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:12px;display:inline-block;box-shadow:0 4px 30px rgba(0,0,0,.3);overflow:auto;max-width:96vw}
+.grid{display:grid;gap:1px}
+.cell{width:24px;height:24px;background:var(--surface2);border-radius:2px;cursor:pointer;transition:background .08s,transform .2s}
+.cell:hover{background:#2a3050}
+.cell.wall{background:#4e5478;box-shadow:inset 0 0 4px rgba(0,0,0,.4)}
+.cell.start{background:var(--green);border-radius:50%;box-shadow:0 0 10px rgba(52,211,153,.4)}
+.cell.end{background:var(--accent2);border-radius:50%;box-shadow:0 0 10px rgba(255,92,138,.4)}
+.cell.visited{background:rgba(34,211,238,.25);animation:visitPop .35s ease}
+.cell.path{background:var(--yellow);box-shadow:0 0 8px rgba(251,191,36,.4);animation:pathGlow .4s ease}
+@keyframes visitPop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+@keyframes pathGlow{0%{transform:scale(.4);background:var(--cyan)}100%{transform:scale(1);background:var(--yellow)}}
+
+/* ── Legend & Stats ── */
+.info-row{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap;justify-content:center;align-items:center}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--text2);font-weight:500}
+.legend-dot{width:14px;height:14px;border-radius:3px}
+.sep{width:1px;height:18px;background:var(--border)}
+.stat{font-size:.82rem;color:var(--text2);font-weight:500}
+.stat b{color:var(--cyan);font-weight:700}
+
+/* ── Responsive ── */
+@media(max-width:800px){
+  .bars-wrap{height:40vh;width:97vw}
+  .cell{width:18px;height:18px}
+  .controls{gap:8px;padding:10px 14px}
+  .header{padding:12px 16px;flex-wrap:wrap;gap:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<div class="header">
+  <div class="logo"><span>Algorithm Visualizer</span></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('sorting')">Sorting</button>
+    <button class="tab" onclick="switchTab('pathfinding')">Pathfinding</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SORTING CONTROLS ═══════════════ -->
+<div class="controls" id="sorting-controls">
+  <label>Algorithm
+    <select id="sort-algo">
+      <option value="bubble">Bubble Sort</option>
+      <option value="selection">Selection Sort</option>
+      <option value="insertion">Insertion Sort</option>
+      <option value="merge">Merge Sort</option>
+      <option value="quick">Quick Sort</option>
+    </select>
+  </label>
+  <label>Size <span id="size-val">50</span>
+    <input type="range" id="size-slider" min="10" max="150" value="50">
+  </label>
+  <label>Speed <span id="speed-val">50</span>
+    <input type="range" id="speed-slider" min="1" max="100" value="50">
+  </label>
+  <button class="btn-go" id="sort-btn" onclick="startSort()">Sort</button>
+  <button class="btn-new" onclick="generateArray()">New Array</button>
+  <button class="btn-stop" id="stop-btn" onclick="stopSort()" style="display:none">Stop</button>
+</div>
+
+<!-- ═══════════════ PATHFINDING CONTROLS ═══════════════ -->
+<div class="controls" id="pathfinding-controls" style="display:none">
+  <label>Algorithm
+    <select id="path-algo">
+      <option value="astar">A* Search</option>
+      <option value="dijkstra">Dijkstra's Algorithm</option>
+    </select>
+  </label>
+  <label>Speed <span id="pspeed-val">50</span>
+    <input type="range" id="path-speed-slider" min="1" max="100" value="50">
+  </label>
+  <button class="btn-go" id="path-btn" onclick="startPathfinding()">Find Path</button>
+  <button class="btn-new" onclick="clearPath()">Clear Path</button>
+  <button class="btn-new" onclick="clearBoard()">Clear Board</button>
+  <button class="btn-new" onclick="generateMaze()">Random Maze</button>
+  <button class="btn-stop" id="path-stop-btn" onclick="stopPathfinding()" style="display:none">Stop</button>
+</div>
+
+<!-- ═══════════════ SORTING VIEW ═══════════════ -->
+<div id="sorting-view">
+  <div class="bars-wrap" id="bars-container"></div>
+  <div class="info-row">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Default</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Comparing</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Swapping</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Sorted</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Pivot</div>
+    <div class="sep"></div>
+    <div class="stat">Comparisons: <b id="stat-comp">0</b></div>
+    <div class="stat">Array Accesses: <b id="stat-swap">0</b></div>
+  </div>
+</div>
+
+<!-- ═══════════════ PATHFINDING VIEW ═══════════════ -->
+<div id="pathfinding-view">
+  <div class="grid-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="info-row">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green);border-radius:50%"></div>Start (drag)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2);border-radius:50%"></div>End (drag)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4e5478"></div>Wall (click)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(34,211,238,.4)"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Shortest Path</div>
+    <div class="sep"></div>
+    <div class="stat">Visited: <b id="stat-visited">0</b></div>
+    <div class="stat">Path Length: <b id="stat-path">0</b></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   TAB SWITCHING
+   ================================================================ */
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='sorting'?0:1)===i);
+  });
+  document.getElementById('sorting-view').style.display    = tab==='sorting'?'flex':'none';
+  document.getElementById('pathfinding-view').style.display = tab==='pathfinding'?'flex':'none';
+  document.getElementById('sorting-controls').style.display    = tab==='sorting'?'flex':'none';
+  document.getElementById('pathfinding-controls').style.display = tab==='pathfinding'?'flex':'none';
+}
+
+/* ================================================================
+   SORTING VISUALIZER
+   ================================================================ */
+let sortArray = [];
+let sorting = false;
+let sortAbort = false;
+let comparisons = 0, accesses = 0;
+
+const barsContainer = document.getElementById('bars-container');
+const sizeSlider    = document.getElementById('size-slider');
+const speedSlider   = document.getElementById('speed-slider');
+const sizeVal       = document.getElementById('size-val');
+const speedVal      = document.getElementById('speed-val');
+
+sizeSlider.addEventListener('input', () => { sizeVal.textContent = sizeSlider.value; if(!sorting) generateArray(); });
+speedSlider.addEventListener('input', () => { speedVal.textContent = speedSlider.value; });
+
+function getDelay() { return Math.max(1, 210 - speedSlider.value * 2.05); }
+
+function generateArray() {
+  if (sorting) return;
+  const n = parseInt(sizeSlider.value);
+  sortArray = Array.from({length:n}, () => Math.random() * 0.92 + 0.08);
+  comparisons = 0; accesses = 0; updateStats();
+  renderBars();
+}
+
+// Color palette for default bars (gradient based on value)
+function barColor(v) {
+  // HSL from cyan(180) through blue(240) to purple(280) based on value
+  const hue = 180 + v * 100;
+  return `hsl(${hue}, 75%, 58%)`;
+}
+
+function renderBars(colors = {}) {
+  barsContainer.innerHTML = '';
+  sortArray.forEach((v, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = (v * 100) + '%';
+    bar.style.background = colors[i] || barColor(v);
+    barsContainer.appendChild(bar);
+  });
+}
+
+function updateStats() {
+  document.getElementById('stat-comp').textContent = comparisons;
+  document.getElementById('stat-swap').textContent = accesses;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function visualize(indices, type, extras = {}) {
+  if (sortAbort) throw 'abort';
+  const colors = {};
+  if (extras.pivot !== undefined) colors[extras.pivot] = 'var(--purple)';
+  if (extras.sorted) extras.sorted.forEach(i => { colors[i] = 'var(--green)'; });
+  indices.forEach(i => {
+    colors[i] = type === 'compare' ? 'var(--yellow)' :
+                type === 'swap'    ? 'var(--accent2)' :
+                type === 'sorted'  ? 'var(--green)' : barColor(sortArray[i]);
+  });
+  renderBars(colors);
+  await sleep(getDelay());
+}
+
+async function markAllSorted() {
+  const colors = {};
+  // Sweep animation
+  for (let i = 0; i < sortArray.length; i++) {
+    colors[i] = 'var(--green)';
+    renderBars({...colors});
+    await sleep(Math.max(3, 600 / sortArray.length));
+    if (sortAbort) return;
+  }
+}
+
+async function startSort() {
+  if (sorting) return;
+  sorting = true; sortAbort = false;
+  comparisons = 0; accesses = 0; updateStats();
+  document.getElementById('sort-btn').style.display = 'none';
+  document.getElementById('stop-btn').style.display = '';
+  const algo = document.getElementById('sort-algo').value;
+  try {
+    switch(algo) {
+      case 'bubble':    await bubbleSort(); break;
+      case 'selection': await selectionSort(); break;
+      case 'insertion': await insertionSort(); break;
+      case 'merge':     await mergeSortVis(); break;
+      case 'quick':     await quickSortVis(); break;
+    }
+    await markAllSorted();
+  } catch(e) { /* aborted */ }
+  sorting = false;
+  document.getElementById('sort-btn').style.display = '';
+  document.getElementById('stop-btn').style.display = 'none';
+}
+
+function stopSort() { sortAbort = true; }
+
+// ── Bubble Sort ──
+async function bubbleSort() {
+  const a = sortArray, n = a.length;
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = 0; j < n - i - 1; j++) {
+      comparisons++; accesses += 2; updateStats();
+      await visualize([j, j+1], 'compare');
+      if (a[j] > a[j+1]) {
+        [a[j], a[j+1]] = [a[j+1], a[j]];
+        accesses += 2; updateStats();
+        await visualize([j, j+1], 'swap');
+      }
+    }
+  }
+}
+
+// ── Selection Sort ──
+async function selectionSort() {
+  const a = sortArray, n = a.length;
+  for (let i = 0; i < n - 1; i++) {
+    let min = i;
+    for (let j = i + 1; j < n; j++) {
+      comparisons++; accesses += 2; updateStats();
+      await visualize([min, j], 'compare');
+      if (a[j] < a[min]) min = j;
+    }
+    if (min !== i) {
+      [a[i], a[min]] = [a[min], a[i]];
+      accesses += 2; updateStats();
+      await visualize([i, min], 'swap');
+    }
+  }
+}
+
+// ── Insertion Sort ──
+async function insertionSort() {
+  const a = sortArray, n = a.length;
+  for (let i = 1; i < n; i++) {
+    let key = a[i], j = i - 1;
+    accesses++; updateStats();
+    while (j >= 0 && a[j] > key) {
+      comparisons++; accesses += 2; updateStats();
+      await visualize([j, j+1], 'compare');
+      a[j+1] = a[j];
+      accesses++; updateStats();
+      await visualize([j, j+1], 'swap');
+      j--;
+    }
+    if (j >= 0) { comparisons++; updateStats(); }
+    a[j+1] = key;
+    accesses++; updateStats();
+  }
+}
+
+// ── Merge Sort ──
+async function mergeSortVis() {
+  await mergeSortHelper(0, sortArray.length - 1);
+}
+async function mergeSortHelper(l, r) {
+  if (sortAbort) throw 'abort';
+  if (l >= r) return;
+  const m = (l + r) >> 1;
+  await mergeSortHelper(l, m);
+  await mergeSortHelper(m + 1, r);
+  await merge(l, m, r);
+}
+async function merge(l, m, r) {
+  const a = sortArray;
+  const left = a.slice(l, m + 1), right = a.slice(m + 1, r + 1);
+  accesses += (r - l + 1); updateStats();
+  let i = 0, j = 0, k = l;
+  while (i < left.length && j < right.length) {
+    comparisons++; accesses += 2; updateStats();
+    await visualize([k], 'compare');
+    if (left[i] <= right[j]) { a[k] = left[i]; i++; }
+    else { a[k] = right[j]; j++; }
+    accesses++; updateStats();
+    await visualize([k], 'swap');
+    k++;
+  }
+  while (i < left.length) { a[k] = left[i]; i++; accesses++; updateStats(); await visualize([k], 'swap'); k++; }
+  while (j < right.length) { a[k] = right[j]; j++; accesses++; updateStats(); await visualize([k], 'swap'); k++; }
+}
+
+// ── Quick Sort ──
+async function quickSortVis() { await quickHelper(0, sortArray.length - 1); }
+async function quickHelper(lo, hi) {
+  if (sortAbort) throw 'abort';
+  if (lo >= hi) return;
+  const p = await partition(lo, hi);
+  await quickHelper(lo, p - 1);
+  await quickHelper(p + 1, hi);
+}
+async function partition(lo, hi) {
+  const a = sortArray;
+  const pivot = a[hi]; accesses++; updateStats();
+  let i = lo;
+  for (let j = lo; j < hi; j++) {
+    comparisons++; accesses += 2; updateStats();
+    await visualize([j, hi], 'compare', {pivot: hi});
+    if (a[j] < pivot) {
+      [a[i], a[j]] = [a[j], a[i]];
+      accesses += 2; updateStats();
+      await visualize([i, j], 'swap', {pivot: hi});
+      i++;
+    }
+  }
+  [a[i], a[hi]] = [a[hi], a[i]];
+  accesses += 2; updateStats();
+  await visualize([i, hi], 'swap');
+  return i;
+}
+
+/* ================================================================
+   PATHFINDING VISUALIZER
+   ================================================================ */
+const ROWS = 25, COLS = 45;
+let pgrid = [], startNode = [12, 5], endNode = [12, 39];
+let pathRunning = false, pathAbort = false;
+let dragging = null;
+let mouseDown = false;
+
+const pathSpeedSlider = document.getElementById('path-speed-slider');
+const pspeedVal = document.getElementById('pspeed-val');
+pathSpeedSlider.addEventListener('input', () => { pspeedVal.textContent = pathSpeedSlider.value; });
+
+function getPathDelay() { return Math.max(1, 85 - pathSpeedSlider.value * 0.83); }
+
+function initGrid() {
+  pgrid = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  renderGrid();
+}
+
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.style.gridTemplateColumns = `repeat(${COLS}, 24px)`;
+  g.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      if (r === startNode[0] && c === startNode[1]) cell.classList.add('start');
+      else if (r === endNode[0] && c === endNode[1]) cell.classList.add('end');
+      else if (pgrid[r][c] === 1) cell.classList.add('wall');
+      cell.addEventListener('mousedown', onCellDown);
+      cell.addEventListener('mouseenter', onCellEnter);
+      cell.addEventListener('touchstart', onCellTouchStart, {passive: false});
+      cell.addEventListener('touchmove', onCellTouchMove, {passive: false});
+      g.appendChild(cell);
+    }
+  }
+}
+
+function getCell(r, c) { return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+
+function onCellDown(e) {
+  e.preventDefault();
+  if (pathRunning) return;
+  mouseDown = true;
+  const r = +e.target.dataset.r, c = +e.target.dataset.c;
+  if (r === startNode[0] && c === startNode[1]) { dragging = 'start'; return; }
+  if (r === endNode[0] && c === endNode[1])     { dragging = 'end'; return; }
+  if (pgrid[r][c] === 1) { dragging = 'erase'; pgrid[r][c] = 0; e.target.classList.remove('wall'); }
+  else { dragging = 'wall'; pgrid[r][c] = 1; e.target.classList.add('wall'); }
+}
+
+function onCellEnter(e) {
+  if (!mouseDown || pathRunning) return;
+  const r = +e.target.dataset.r, c = +e.target.dataset.c;
+  applyDrag(r, c, e.target);
+}
+
+function applyDrag(r, c, el) {
+  if (dragging === 'start') {
+    if (pgrid[r][c] === 1 || (r === endNode[0] && c === endNode[1])) return;
+    const prev = getCell(startNode[0], startNode[1]); if (prev) prev.classList.remove('start');
+    startNode = [r, c]; el.classList.add('start');
+  } else if (dragging === 'end') {
+    if (pgrid[r][c] === 1 || (r === startNode[0] && c === startNode[1])) return;
+    const prev = getCell(endNode[0], endNode[1]); if (prev) prev.classList.remove('end');
+    endNode = [r, c]; el.classList.add('end');
+  } else if (dragging === 'wall') {
+    if ((r === startNode[0] && c === startNode[1]) || (r === endNode[0] && c === endNode[1])) return;
+    pgrid[r][c] = 1; el.classList.add('wall');
+  } else if (dragging === 'erase') {
+    pgrid[r][c] = 0; el.classList.remove('wall');
+  }
+}
+
+// Touch support
+function onCellTouchStart(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!el || !el.dataset.r) return;
+  onCellDown({preventDefault:()=>{}, target: el});
+}
+function onCellTouchMove(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!el || !el.dataset.r) return;
+  const r = +el.dataset.r, c = +el.dataset.c;
+  applyDrag(r, c, el);
+}
+
+document.addEventListener('mouseup', () => { mouseDown = false; dragging = null; });
+document.addEventListener('touchend', () => { mouseDown = false; dragging = null; });
+
+function clearPath() {
+  if (pathRunning) return;
+  document.querySelectorAll('.cell.visited,.cell.path').forEach(c => c.classList.remove('visited', 'path'));
+  document.getElementById('stat-visited').textContent = '0';
+  document.getElementById('stat-path').textContent = '0';
+}
+
+function clearBoard() {
+  if (pathRunning) return;
+  pgrid = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  startNode = [12, 5]; endNode = [12, 39];
+  renderGrid();
+  document.getElementById('stat-visited').textContent = '0';
+  document.getElementById('stat-path').textContent = '0';
+}
+
+function generateMaze() {
+  if (pathRunning) return;
+  clearPath();
+  // Recursive-ish random walls with some structure
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if ((r === startNode[0] && c === startNode[1]) || (r === endNode[0] && c === endNode[1])) { pgrid[r][c] = 0; continue; }
+      pgrid[r][c] = Math.random() < 0.28 ? 1 : 0;
+    }
+  renderGrid();
+}
+
+function sleepP(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Min Heap ──
+class MinHeap {
+  constructor(cmp) { this.d = []; this.cmp = cmp; }
+  push(v) { this.d.push(v); this._up(this.d.length - 1); }
+  pop() { const t = this.d[0]; const l = this.d.pop(); if (this.d.length) { this.d[0] = l; this._down(0); } return t; }
+  get size() { return this.d.length; }
+  _up(i) { while (i > 0) { const p = (i - 1) >> 1; if (this.cmp(this.d[i], this.d[p]) < 0) { [this.d[i], this.d[p]] = [this.d[p], this.d[i]]; i = p; } else break; } }
+  _down(i) { const n = this.d.length; while (true) { let s = i; const l = 2*i+1, r = 2*i+2; if (l < n && this.cmp(this.d[l], this.d[s]) < 0) s = l; if (r < n && this.cmp(this.d[r], this.d[s]) < 0) s = r; if (s === i) break; [this.d[i], this.d[s]] = [this.d[s], this.d[i]]; i = s; } }
+}
+
+function heuristic(r1, c1, r2, c2) { return Math.abs(r1 - r2) + Math.abs(c1 - c2); }
+
+async function startPathfinding() {
+  if (pathRunning) return;
+  clearPath();
+  pathRunning = true; pathAbort = false;
+  document.getElementById('path-btn').style.display = 'none';
+  document.getElementById('path-stop-btn').style.display = '';
+  const algo = document.getElementById('path-algo').value;
+  try {
+    if (algo === 'astar') await runAStar();
+    else await runDijkstra();
+  } catch(e) { /* aborted */ }
+  pathRunning = false;
+  document.getElementById('path-btn').style.display = '';
+  document.getElementById('path-stop-btn').style.display = 'none';
+}
+
+function stopPathfinding() { pathAbort = true; }
+
+const DIR = [[-1,0],[1,0],[0,-1],[0,1]];
+
+async function runAStar() {
+  const [sr,sc] = startNode, [er,ec] = endNode;
+  const dist = Array.from({length:ROWS}, () => Array(COLS).fill(Infinity));
+  const prev = Array.from({length:ROWS}, () => Array(COLS).fill(null));
+  const closed = Array.from({length:ROWS}, () => Array(COLS).fill(false));
+  dist[sr][sc] = 0;
+  const heap = new MinHeap((a,b) => a[0] - b[0]);
+  heap.push([heuristic(sr,sc,er,ec), 0, sr, sc]);
+  let visitCount = 0;
+
+  while (heap.size) {
+    if (pathAbort) throw 'abort';
+    const [_f, g, r, c] = heap.pop();
+    if (closed[r][c]) continue;
+    closed[r][c] = true;
+    visitCount++;
+    document.getElementById('stat-visited').textContent = visitCount;
+
+    if (!(r === sr && c === sc) && !(r === er && c === ec)) {
+      getCell(r, c).classList.add('visited');
+    }
+
+    if (r === er && c === ec) { await tracePath(prev, er, ec); return; }
+
+    if (visitCount % 2 === 0) await sleepP(getPathDelay());
+
+    for (const [dr, dc] of DIR) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || pgrid[nr][nc] === 1 || closed[nr][nc]) continue;
+      const ng = g + 1;
+      if (ng < dist[nr][nc]) {
+        dist[nr][nc] = ng;
+        prev[nr][nc] = [r, c];
+        heap.push([ng + heuristic(nr, nc, er, ec), ng, nr, nc]);
+      }
+    }
+  }
+}
+
+async function runDijkstra() {
+  const [sr,sc] = startNode, [er,ec] = endNode;
+  const dist = Array.from({length:ROWS}, () => Array(COLS).fill(Infinity));
+  const prev = Array.from({length:ROWS}, () => Array(COLS).fill(null));
+  const closed = Array.from({length:ROWS}, () => Array(COLS).fill(false));
+  dist[sr][sc] = 0;
+  const heap = new MinHeap((a,b) => a[0] - b[0]);
+  heap.push([0, sr, sc]);
+  let visitCount = 0;
+
+  while (heap.size) {
+    if (pathAbort) throw 'abort';
+    const [d, r, c] = heap.pop();
+    if (closed[r][c]) continue;
+    closed[r][c] = true;
+    visitCount++;
+    document.getElementById('stat-visited').textContent = visitCount;
+
+    if (!(r === sr && c === sc) && !(r === er && c === ec)) {
+      getCell(r, c).classList.add('visited');
+    }
+
+    if (r === er && c === ec) { await tracePath(prev, er, ec); return; }
+
+    if (visitCount % 2 === 0) await sleepP(getPathDelay());
+
+    for (const [dr, dc] of DIR) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || pgrid[nr][nc] === 1 || closed[nr][nc]) continue;
+      const nd = d + 1;
+      if (nd < dist[nr][nc]) {
+        dist[nr][nc] = nd;
+        prev[nr][nc] = [r, c];
+        heap.push([nd, nr, nc]);
+      }
+    }
+  }
+}
+
+async function tracePath(prev, er, ec) {
+  const path = [];
+  let cur = [er, ec];
+  while (cur) { path.push(cur); cur = prev[cur[0]][cur[1]]; }
+  path.reverse();
+  document.getElementById('stat-path').textContent = path.length;
+  for (const [r, c] of path) {
+    if (pathAbort) throw 'abort';
+    if ((r === startNode[0] && c === startNode[1]) || (r === endNode[0] && c === endNode[1])) continue;
+    const cell = getCell(r, c);
+    cell.classList.remove('visited');
+    cell.classList.add('path');
+    await sleepP(22);
+  }
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+generateArray();
+initGrid();
+</script>
+</body>
+</html>
