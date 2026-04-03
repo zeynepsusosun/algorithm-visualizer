@@ -109,6 +109,11 @@ Works in all modern browsers: Chrome, Firefox, Edge, Safari.
 
 ---
 
+## Contributors
+
+- Zeynep Su Sosun
+- Enes Erul
+
 ## License
 
 This project is open source and available under the [MIT License](https://opensource.org/licenses/MIT).
